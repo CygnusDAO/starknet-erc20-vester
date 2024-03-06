@@ -1,4 +1,4 @@
-/// Testing only OZ's camelCase ERC20 implementation
+/// Testing only OZ's snake_case ERC20 implementation
 /// The tests follow the original TokenVesting.sol tests:
 /// https://github.com/AbdelStark/token-vesting-contracts/blob/main/test/TokenVesting.js
 
