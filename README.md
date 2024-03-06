@@ -7,7 +7,7 @@ Vesting contracts written in Cairo1 for Starknet ERC20 tokens.
 This is a fork of Solidity's [TokenVesting](https://github.com/AbdelStark/token-vesting-contracts/) which was released under the Apache-2.0.
 We are not the original authors and this is just a Cairo1 re-write of the original.
 
-All credit and gratitude to @AbdelStark for open-sourcing the original code.
+All credit and gratitude to [AbdelStark](https://github.com/AbdelStark) for open-sourcing the original code.
 
 ## Motivation
 
