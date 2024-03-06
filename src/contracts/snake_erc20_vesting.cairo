@@ -9,8 +9,8 @@ pub mod SnakeTokenVesting {
     use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
 
     /// # Imports
+    use core::poseidon::poseidon_hash_span;
     use token_vesting::types::token_vesting_types::VestingSchedule;
-    use core::{integer::BoundedInt, poseidon::poseidon_hash_span, num::traits::Zero};
     use starknet::{ContractAddress, get_caller_address, get_contract_address, get_block_timestamp};
 
     /// # Errors
