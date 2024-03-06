@@ -1,0 +1,24 @@
+[package]
+name = "token_vesting"
+version = "0.1.0"
+description = "Starknet ERC20 vesting contract"
+license = "Apache-2.0"
+edition = '2023_11'
+keywords = ["token", "vesting", "defi", "erc20", "cairo"]
+cairo-version = "2.5.3"
+
+[dependencies]
+snforge_std = { git = "https://github.com/foundry-rs/starknet-foundry", tag = "v0.18.0" }
+openzeppelin = { git = "https://github.com/OpenZeppelin/cairo-contracts.git", tag = "v0.9.0" }
+starknet = "2.5.3"
+
+[[target.starknet-contract]]
+sierra = true
+casm = true
+
+[tool.snforge]
+exit_first = true
+
+[tool.fmt]
+max-line-length = 120
+
