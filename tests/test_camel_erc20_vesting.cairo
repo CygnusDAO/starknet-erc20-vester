@@ -1,13 +1,9 @@
 /// Testing only OZ's camelCase ERC20 implementation
+
 /// The tests follow the original TokenVesting.sol tests:
 /// https://github.com/AbdelStark/token-vesting-contracts/blob/main/test/TokenVesting.js
 
 /// Imports
-use snforge_std::{
-    declare, ContractClass, ContractClassTrait, start_prank, stop_prank, CheatTarget, start_warp, stop_warp, store
-};
-// use starknet::{ContractAddress, SyscallResultTrait, deploy_syscall};
-// use core::{integer::BoundedInt, poseidon::poseidon_hash_span, num::traits::Zero};
 use starknet::{ContractAddress, deploy_syscall, SyscallResultTrait};
 
 /// Token vesting
@@ -15,6 +11,11 @@ use token_vesting::contracts::interface::{ITokenVestingDispatcher, ITokenVesting
 
 /// Mock erc20 token (NOTE: if panicking then get safe dispatchers)
 use token_vesting::mock::camel_erc20::{ICamelERC20MockDispatcher, ICamelERC20MockDispatcherTrait};
+
+/// Foundry
+use snforge_std::{
+    declare, ContractClass, ContractClassTrait, start_prank, stop_prank, CheatTarget, start_warp, stop_warp, store
+};
 
 /// Test constants
 const INITIAL_SUPPLY: u256 = 1000;
