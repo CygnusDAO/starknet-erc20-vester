@@ -42,11 +42,7 @@ pub mod SnakeERC20Mock {
 
     #[constructor]
     fn constructor(
-        ref self: ContractState,
-        name: felt252,
-        symbol: felt252,
-        initial_supply: u256,
-        recipient: ContractAddress
+        ref self: ContractState, name: felt252, symbol: felt252, initial_supply: u256, recipient: ContractAddress
     ) {
         self.erc20.initializer(name, symbol);
         self.erc20._mint(recipient, initial_supply);

@@ -9,18 +9,28 @@ pub mod SnakeTokenVesting {
     use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
 
     /// # Imports
+    use token_vesting::types::token_vesting_types::VestingSchedule;
     use core::{integer::BoundedInt, poseidon::poseidon_hash_span, num::traits::Zero};
     use starknet::{ContractAddress, get_caller_address, get_contract_address, get_block_timestamp};
-    use token_vesting::types::token_vesting_types::VestingSchedule;
 
     /// # Errors
     use token_vesting::errors::token_vesting_errors::Errors;
 
     /// # Events
+    use token_vesting::events::token_vesting_events::Events::{Release, NewTokenVesting, Revoke, Withdraw};
 
     /// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
     ///     2. EVENTS
     /// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+
+    #[event]
+    #[derive(Drop, starknet::Event)]
+    enum Event {
+        Release: Release,
+        NewTokenVesting: NewTokenVesting,
+        Revoke: Revoke,
+        Withdraw: Withdraw
+    }
 
     /// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
     ///     3. STORAGE
@@ -66,8 +76,37 @@ pub mod SnakeTokenVesting {
 
         /// # Implementation
         /// * ITokenVesting
+        fn owner(self: @ContractState) -> ContractAddress {
+            self.owner.read()
+        }
+
+        /// # Implementation
+        /// * ITokenVesting
         fn get_token(self: @ContractState) -> ContractAddress {
             self.token.read().contract_address
+        }
+
+        /// # Implementation
+        /// * ITokenVesting
+        fn get_current_time(self: @ContractState) -> u256 {
+            /// Convert to u256 to follow `TokenVesting.sol` but maybe better to keep u64?
+            get_block_timestamp().into()
+        }
+
+        /// # Implementation
+        /// * ITokenVesting
+        fn get_vesting_schedule(self: @ContractState, vesting_schedule_id: felt252) -> VestingSchedule {
+            self.vesting_schedules.read(vesting_schedule_id)
+        }
+        /// # Implementation
+        /// * ITokenVesting
+        fn get_vesting_id_at_index(self: @ContractState, index: u32) -> felt252 {
+            /// # Error
+            /// * `INDEX_OUT_OF_BOUNDS`
+            assert(index < self.get_vesting_schedules_count(), Errors::INDEX_OUT_OF_BOUNDS);
+
+            /// Get vesting schedule at `index`
+            self.vesting_schedule_ids.read(index)
         }
 
         /// # Implementation
@@ -82,14 +121,8 @@ pub mod SnakeTokenVesting {
 
         /// # Implementation
         /// * ITokenVesting
-        fn owner(self: @ContractState) -> ContractAddress {
-            self.owner.read()
-        }
-
-        /// # Implementation
-        /// * ITokenVesting
-        fn get_vesting_schedule(self: @ContractState, vesting_schedule_id: felt252) -> VestingSchedule {
-            self.vesting_schedules.read(vesting_schedule_id)
+        fn get_vesting_schedules_count(self: @ContractState) -> u32 {
+            self.vesting_schedule_ids_length.read()
         }
 
         /// # Implementation
@@ -102,33 +135,6 @@ pub mod SnakeTokenVesting {
         /// * ITokenVesting
         fn get_vesting_schedules_count_by_beneficiary(self: @ContractState, beneficiary: ContractAddress) -> u32 {
             self.holders_vesting_count.read(beneficiary)
-        }
-
-        /// # Implementation
-        /// * ITokenVesting
-        fn get_vesting_id_at_index(self: @ContractState, index: u32) -> felt252 {
-            /// # Error
-            /// * `INDEX_OUT_OF_BOUNDS`
-            assert(index < self.get_vesting_schedules_count(), Errors::INDEX_OUT_OF_BOUNDS);
-
-            /// Get vesting schedule at `index`
-            self.vesting_schedule_ids.read(index)
-        }
-
-        /// # Implementation
-        /// * ITokenVesting
-        fn get_vesting_schedules_count(self: @ContractState) -> u32 {
-            self.vesting_schedule_ids_length.read()
-        }
-
-        /// # Implementation
-        /// * ITokenVesting
-        fn compute_next_vesting_schedule_id_for_holder(self: @ContractState, holder: ContractAddress) -> felt252 {
-            /// Get holder's total vesting counts
-            let index = self.holders_vesting_count.read(holder);
-
-            /// Return the next vesting ID for holder
-            self.compute_vesting_schedule_id_for_address_and_index(holder, index)
         }
 
         /// # Implementation
@@ -155,11 +161,15 @@ pub mod SnakeTokenVesting {
             poseidon_hash_span(arr.span())
         }
 
+
         /// # Implementation
         /// * ITokenVesting
-        fn get_current_time(self: @ContractState) -> u256 {
-            /// Convert to u256 to follow `TokenVesting.sol` but maybe better to keep u64?
-            get_block_timestamp().into()
+        fn compute_next_vesting_schedule_id_for_holder(self: @ContractState, holder: ContractAddress) -> felt252 {
+            /// Get holder's total vesting counts
+            let index = self.holders_vesting_count.read(holder);
+
+            /// Return the next vesting ID for holder
+            self.compute_vesting_schedule_id_for_address_and_index(holder, index)
         }
 
         /// # Implementation
@@ -249,6 +259,10 @@ pub mod SnakeTokenVesting {
 
             let current_vesting_count = self.holders_vesting_count.read(beneficiary);
             self.holders_vesting_count.write(beneficiary, current_vesting_count + 1);
+
+            /// # Event
+            /// * `NewTokenVesting`
+            self.emit(NewTokenVesting { vesting_schedule })
         }
 
         /// # Security
@@ -267,13 +281,13 @@ pub mod SnakeTokenVesting {
             /// Get vesting schedule, we overwrite if successful
             let mut vesting_schedule = self.vesting_schedules.read(vesting_schedule_id);
 
-            /// Check caller is beneficiary or owner
-            let is_beneficiary: bool = get_caller_address() == vesting_schedule.beneficiary;
-            let is_releasor: bool = get_caller_address() == self.owner.read();
+            /// Get beneficiary of the vesting schedule and caller
+            let beneficiary = vesting_schedule.beneficiary;
+            let caller = get_caller_address();
 
             /// # Error
             /// * `ONLY_BENEFICIARY_OR_OWNER` - Only beneficiary or owner can release vested tokens
-            assert(is_beneficiary || is_releasor, Errors::ONLY_BENEFICIARY_OR_OWNER);
+            assert(caller == beneficiary || caller == self.owner.read(), Errors::ONLY_BENEFICIARY_OR_OWNER);
 
             /// # Error
             /// * `NOT_ENOUGH_VESTED_TOKENS` - Avoid if amount is higher than releasable
@@ -288,10 +302,14 @@ pub mod SnakeTokenVesting {
             self.vesting_schedules_total_amount.write(new_total_vesting_amounts);
 
             /// Transfer amount to beneficiary
-            self.token.read().transfer(vesting_schedule.beneficiary, amount);
+            self.token.read().transfer(beneficiary, amount);
 
             /// Unlock
             self._unlock();
+
+            /// # Event
+            /// * `NewTokenVesting`
+            self.emit(Release { vesting_schedule_id, beneficiary, caller, amount });
         }
 
         /// # Security
@@ -312,10 +330,15 @@ pub mod SnakeTokenVesting {
             assert(self.get_withdrawable_amount() >= amount, Errors::INSUFFICIENT_FUNDS);
 
             /// Transfer `amount` to owner
-            self.token.read().transfer(get_caller_address(), amount);
+            let caller = get_caller_address();
+            self.token.read().transfer(caller, amount);
 
             /// Unlock
             self._unlock();
+
+            /// # Event
+            /// * `Withdraw`
+            self.emit(Withdraw { caller, amount });
         }
 
         /// # Security
@@ -357,6 +380,10 @@ pub mod SnakeTokenVesting {
             /// Update vesting schedule storage struct
             vesting_schedule.revoked = true;
             self.vesting_schedules.write(vesting_schedule_id, vesting_schedule);
+
+            /// # Event
+            /// * `Revoke`
+            self.emit(Revoke { vesting_schedule });
         }
     }
 
