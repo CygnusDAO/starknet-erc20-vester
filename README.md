@@ -39,7 +39,7 @@ It uses [OpenZeppelin Cairo contracts](https://github.com/OpenZeppelin/cairo-con
 as the dualCase dispatchers won’t work on live chains (mainnet or testnets) until there's syscall panic handlings on Starknet, we will add it then.
 
 The only real difference in the implementation was on how we compute the vesting schedule ID's. On the original Solidity version the `keccak256`
-hash is used to compute the ID's, in this case we used the `poseidon` hash which is natively supported in Starknet.
+hash is used to compute the ID's, in this case we used Starknet's `poseidon` hash of (user, index).
 
 ## License
 
